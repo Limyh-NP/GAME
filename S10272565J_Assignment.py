@@ -25,20 +25,16 @@ SAVE_FILE = 'savefile.txt'
 # It also updates MAP_WIDTH and MAP_HEIGHT
 # TODO: Add your map loading code here (done)
 def load_map(filename, map_struct):
-    with open(filename, 'r') as map_file:
-        global MAP_WIDTH
-        global MAP_HEIGHT
-    
+    global MAP_WIDTH, MAP_HEIGHT
+    with open(filename, 'r') as f:
         map_struct.clear()
-    
-        map_file = map_file.read()
-        map_struct = map_file.split("\n")
-        for e in range(len(map_struct)):
-            map_struct[e] = list(map_struct[e])
-        MAP_WIDTH = len(map_struct[0])
-        MAP_HEIGHT = len(map_struct)
+        for line in f:
+            row = list(line.rstrip('\n'))  #only strip newline, keep spaces
+            if row:
+                map_struct.append(row)
 
-        return map_struct
+    MAP_HEIGHT = len(map_struct)
+    MAP_WIDTH = min(len(row) for row in map_struct) if MAP_HEIGHT > 0 else 0
 
 # This function clears the fog of war at the 3x3 square around the player
 def clear_fog(fog, player):
@@ -93,20 +89,21 @@ def draw_map(game_map, fog, player):
 # This function draws the 3x3 viewport
 def draw_view(game_map, fog, player):
     print("+---+")
-    for i in range(-1, 2):
+    for dy in range(-1, 2):
         row = "|"
-        for o in range(-1, 2):
-            x = player['x'] + o
-            y = player['y'] + i
-            if (x, y) == (player['x'], player['y']):
-                row += "M"
-            elif 0 <= y < MAP_HEIGHT and 0 <= x < MAP_WIDTH:
-                row += game_map[y][x] if not fog[y][x] else "?"
+        for dx in range(-1, 2):
+            x = player['x'] + dx
+            y = player['y'] + dy
+
+            if 0 <= y < MAP_HEIGHT and 0 <= x < MAP_WIDTH:
+                if (x, y) == (player['x'], player['y']):
+                    row += "M"
+                else:
+                    row += game_map[y][x]  # Always show surroundings
             else:
                 row += "#"
         print(row + "|")
     print("+---+")
-    return
 
 # This function shows the information for the player
 def show_information(player):
@@ -126,35 +123,49 @@ def show_information(player):
 # This function saves the game
 def save_game(game_map, fog, player):
     with open(SAVE_FILE, 'w') as f:
+        # Save player data
         for key, value in player.items():
             f.write(f"{key}:{value}\n")
+
+        # Save fog data as a line of 0s and 1s per row, separated by |
+        f.write("FOG:")
+        for row in fog:
+            line = ''.join(['1' if cell else '0' for cell in row])
+            f.write(line + "|")  # Use '|' to separate rows
     print("Game saved.")
-    return
-        
+    
 # This function loads the game
 def load_game(game_map, fog, player):
     global MAP_WIDTH, MAP_HEIGHT
     load_map("level1.txt", game_map)
-    fog.clear()
-    for row in game_map:
-        fog.append([True] * len(row))
-    f = open(SAVE_FILE, 'r')
-    player.clear()
-    for line in f:
-        if ':' in line:
-            key, value = line.strip().split(":", 1)
-            if key in ['x', 'y', 'copper', 'silver', 'gold', 'GP', 'day', 'steps', 'turns', 'max_load', 'pickaxe_level']:
-                player[key] = int(value)
-            elif key == 'portal':
-                player[key] = eval(value)
-            else:
-                player[key] = value
-    f.close()
 
+    fog_data = None
+    player.clear()
+
+    with open(SAVE_FILE, 'r') as f:
+        for line in f:
+            if line.startswith("FOG:"):
+                fog_data = line[4:].strip().split("|")
+            elif ':' in line:
+                key, value = line.strip().split(":", 1)
+                if key in ['x', 'y', 'copper', 'silver', 'gold', 'GP', 'day', 'steps', 'turns', 'max_load', 'pickaxe_level']:
+                    player[key] = int(value)
+                elif key == 'portal':
+                    player[key] = eval(value)
+                else:
+                    player[key] = value
+
+    # Restore fog from saved data
+    if fog_data:
+        fog.clear()
+        for row in fog_data:
+            if row:  # skip empty lines
+                fog.append([cell == '1' for cell in row])
+
+    # Clamp player position
     player['x'] = min(max(0, player['x']), MAP_WIDTH - 1)
     player['y'] = min(max(0, player['y']), MAP_HEIGHT - 1)
 
-    clear_fog(fog, player)
     print("Game loaded.")
     return True
 
@@ -190,11 +201,17 @@ def enter_mine():
             new_y = player['y'] + dy
 
             if 0 <= new_x < MAP_WIDTH and 0 <= new_y < MAP_HEIGHT:
-                target_tile = game_map[new_y][new_x]
+                #check for border
+                if 0 <= new_y < len(game_map) and 0 <= new_x < len(game_map[new_y]):
+                    target_tile = game_map[new_y][new_x]
+                else:
+                    print("You can't move there.")
+                    continue
+                
                 load = player['copper'] + player['silver'] + player['gold']
 
                 if target_tile in mineral_names:
-                    if load >= player['max_load']:
+                    if load >= player['maxslots']:
                         print("You can't carry any more, so you can't go that way.")
                     else:
                         amount = 0
@@ -205,7 +222,7 @@ def enter_mine():
                         elif target_tile == 'G':
                             amount = randint(1, 2)
 
-                        actual = min(amount, player['max_load'] - load)
+                        actual = min(amount, player['maxslots'] - load)
                         player[mineral_names[target_tile]] += actual
                         print(f"You mined {actual} piece(s) of {mineral_names[target_tile]}.")
                         player['x'] = new_x
