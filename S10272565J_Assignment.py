@@ -67,21 +67,59 @@ def initialize_game(game_map, fog, player):
     player['name'] = ''
     player['backpackslots'] = 10
     player['pickaxelevel'] = 1
-    player['ores'] = []
-    player['totalGP'] = 0
+    player['portal'] = (0,0)
 
     clear_fog(fog, player)
     
 # This function draws the entire map, covered by the fog
 def draw_map(game_map, fog, player):
+    print("+" + "-" * MAP_WIDTH + "+")
+    for y in range(MAP_HEIGHT):
+        row = "|"
+        for x in range(MAP_WIDTH):
+            if (x, y) == (player['x'], player['y']):
+                row += "M"
+            elif (x, y) == player['portal']:
+                row += "P"
+            elif fog[y][x]:
+                row += "?"
+            else:
+                row += game_map[y][x]
+        print(row + "|")
+    print("+" + "-" * MAP_WIDTH + "+")
     return
 
 # This function draws the 3x3 viewport
 def draw_view(game_map, fog, player):
+    print("+---+")
+    for dy in range(-1, 2):
+        row = "|"
+        for dx in range(-1, 2):
+            x = player['x'] + dx
+            y = player['y'] + dy
+            if (x, y) == (player['x'], player['y']):
+                row += "M"
+            elif 0 <= y < MAP_HEIGHT and 0 <= x < MAP_WIDTH:
+                row += game_map[y][x] if not fog[y][x] else "?"
+            else:
+                row += "#"
+        print(row + "|")
+    print("+---+")
     return
 
 # This function shows the information for the player
 def show_information(player):
+    print("\n----- Player Information -----")
+    print(f"Name: {player['name']}")
+    print(f"Current position: ({player['x']}, {player['y']})")
+    print(f"Pickaxe level: {player['pickaxe_level']}")
+    print(f"Gold: {player['gold']}")
+    print(f"Silver: {player['silver']}")
+    print(f"Copper: {player['copper']}")
+    print(f"Load: {player['copper'] + player['silver'] + player['gold']} / {player['max_load']}")
+    print(f"GP: {player['GP']}")
+    print(f"Steps taken: {player['steps']}")
+    print("------------------------------")
     return
 
 # This function saves the game
