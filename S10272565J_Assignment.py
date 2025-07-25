@@ -64,10 +64,15 @@ def initialize_game(game_map, fog, player):
     player['day'] = 0
     player['steps'] = 0
     player['turns'] = TURNS_PER_DAY
+    player['name'] = ''
+    player['backpackslots'] = 10
+    player['pickaxelevel'] = 1
+    player['ores'] = []
+    player['totalGP'] = 0
 
     clear_fog(fog, player)
     
-# This function draws the entire map, covered by the fof
+# This function draws the entire map, covered by the fog
 def draw_map(game_map, fog, player):
     return
 
