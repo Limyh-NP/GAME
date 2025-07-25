@@ -19,25 +19,26 @@ prices['copper'] = (1, 3)
 prices['silver'] = (5, 8)
 prices['gold'] = (10, 18)
 
+SAVE_FILE = 'savefile.txt'
+
 # This function loads a map structure (a nested list) from a file
 # It also updates MAP_WIDTH and MAP_HEIGHT
+# TODO: Add your map loading code here (done)
 def load_map(filename, map_struct):
     with open(filename, 'r') as map_file:
         global MAP_WIDTH
         global MAP_HEIGHT
     
-    map_struct.clear()
+        map_struct.clear()
     
-    # TODO: Add your map loading code here (done)
-    map_file = map_file.read
-    map_struct = map_file.split('\n')
-    for i in range(len(map_struct)):
-            map_struct[i] = list(map_struct[i])
-    
-    MAP_WIDTH = len(map_struct[0])
-    MAP_HEIGHT = len(map_struct)
+        map_file = map_file.read()
+        map_struct = map_file.split("\n")
+        for e in range(len(map_struct)):
+            map_struct[e] = list(map_struct[e])
+        MAP_WIDTH = len(map_struct[0])
+        MAP_HEIGHT = len(map_struct)
 
-    map_file.close()
+        return map_struct
 
 # This function clears the fog of war at the 3x3 square around the player
 def clear_fog(fog, player):
@@ -65,7 +66,7 @@ def initialize_game(game_map, fog, player):
     player['steps'] = 0
     player['turns'] = TURNS_PER_DAY
     player['name'] = ''
-    player['backpackslots'] = 10
+    player['maxslots'] = 10
     player['pickaxelevel'] = 1
     player['portal'] = (0,0)
 
@@ -112,11 +113,11 @@ def show_information(player):
     print("\n----- Player Information -----")
     print(f"Name: {player['name']}")
     print(f"Current position: ({player['x']}, {player['y']})")
-    print(f"Pickaxe level: {player['pickaxe_level']}")
+    print(f"Pickaxe level: {player['pickaxelevel']}")
     print(f"Gold: {player['gold']}")
     print(f"Silver: {player['silver']}")
     print(f"Copper: {player['copper']}")
-    print(f"Load: {player['copper'] + player['silver'] + player['gold']} / {player['max_load']}")
+    print(f"Load: {player['copper'] + player['silver'] + player['gold']} / {player['maxslots']}")
     print(f"GP: {player['GP']}")
     print(f"Steps taken: {player['steps']}")
     print("------------------------------")
@@ -124,17 +125,117 @@ def show_information(player):
 
 # This function saves the game
 def save_game(game_map, fog, player):
-    # save map
-    # save fog
-    # save player
+    with open(SAVE_FILE, 'w') as f:
+        for key, value in player.items():
+            f.write(f"{key}:{value}\n")
+    print("Game saved.")
     return
         
 # This function loads the game
 def load_game(game_map, fog, player):
-    # load map
-    # load fog
-    # load player
-    return
+    f = open(SAVE_FILE, 'r')
+    player.clear()
+    for line in f:
+        if ':' in line:
+            key, value = line.strip().split(":", 1)
+            if key in ['x', 'y', 'copper', 'silver', 'gold', 'GP', 'day', 'steps', 'turns', 'max_load', 'pickaxe_level']:
+                player[key] = int(value)
+            elif key == 'portal':
+                player[key] = eval(value)
+            else:
+                player[key] = value
+    f.close()
+    print("Game loaded.")
+    return True
+
+def enter_mine():
+    player['turns'] = TURNS_PER_DAY
+    print(f"\n{'-'*50}\n{'DAY ' + str(player['day']):^50}\n{'-'*50}")
+
+    while player['turns'] > 0:
+        draw_view(game_map, fog, player)
+        print(f"Turns left: {player['turns']}    Load: {player['copper'] + player['silver'] + player['gold']} / {player['max_load']}    Steps: {player['steps']}")
+        action = input("(WASD) to move | (M)ap | (I)nformation | (P)ortal | (Q)uit: ").strip().lower()
+
+        if action == 'm':
+            draw_map(game_map, fog, player)
+        elif action == 'i':
+            show_information(player)
+        elif action == 'q':
+            break
+        elif action == 'p':
+            print("You place your portal stone here and zap back to town.")
+            player['portal'] = (player['x'], player['y'])
+            sell_ore()
+            player['day'] += 1
+            return
+        elif action in ['w', 'a', 's', 'd']:
+            dx, dy = 0, 0
+            if action == 'w': dy = -1
+            if action == 's': dy = 1
+            if action == 'a': dx = -1
+            if action == 'd': dx = 1
+
+            new_x = player['x'] + dx
+            new_y = player['y'] + dy
+
+            if 0 <= new_x < MAP_WIDTH and 0 <= new_y < MAP_HEIGHT:
+                target_tile = game_map[new_y][new_x]
+                load = player['copper'] + player['silver'] + player['gold']
+
+                if target_tile in mineral_names:
+                    if load >= player['max_load']:
+                        print("You can't carry any more, so you can't go that way.")
+                    else:
+                        amount = 0
+                        if target_tile == 'C':
+                            amount = randint(1, 5)
+                        elif target_tile == 'S':
+                            amount = randint(1, 3)
+                        elif target_tile == 'G':
+                            amount = randint(1, 2)
+
+                        actual = min(amount, player['max_load'] - load)
+                        player[mineral_names[target_tile]] += actual
+                        print(f"You mined {actual} piece(s) of {mineral_names[target_tile]}.")
+                        player['x'] = new_x
+                        player['y'] = new_y
+                        player['steps'] += 1
+                        player['turns'] -= 1
+                        clear_fog(fog, player)
+                elif target_tile == 'T':
+                    print("You returned to town.")
+                    sell_ore()
+                    player['day'] += 1
+                    return
+                else:
+                    player['x'] = new_x
+                    player['y'] = new_y
+                    player['steps'] += 1
+                    player['turns'] -= 1
+                    clear_fog(fog, player)
+            else:
+                print("You can't move there.")
+        else:
+            print("Invalid action.")
+
+    print("You are exhausted. You place your portal stone here and zap back to town.")
+    player['portal'] = (player['x'], player['y'])
+    sell_ore()
+    player['day'] += 1
+    
+def sell_ore():
+    total = 0
+    for ore in ['copper', 'silver', 'gold']:
+        qty = player[ore]
+        if qty > 0:
+            price = randint(prices[ore][0], prices[ore][1])
+            gain = qty * price
+            print(f"You sell {qty} {ore} ore for {gain} GP.")
+            total += gain
+            player[ore] = 0
+    player['GP'] += total
+    print(f"You now have {player['GP']} GP!")
 
 def show_main_menu():
     print()
@@ -146,7 +247,7 @@ def show_main_menu():
     print("------------------")
 
 def show_town_menu(player):
-    print(f"\nDAY {player['day']}")
+    print(f"\nDAY {player['day'] + 1}")
     # TODO: Show Day (done)
     print("----- Sundrop Town -----")
     print("(B)uy stuff")
@@ -169,5 +270,36 @@ print("  and live happily ever after?")
 print("-----------------------------------------------------------")
 
 # TODO: The game!
-    
+while True:
+        show_main_menu()
+        choice = input("Your choice? ").strip().lower()
 
+        if choice == 'n':
+            initialize_game(game_map, fog, player)
+            player['name'] = input("Greetings, miner! What is your name? ")
+            print(f"Pleased to meet you, {player['name']}. Welcome to Sundrop Town!")
+
+            while True:
+                show_town_menu(player)
+                town_choice = input("Your choice? ").strip().lower()
+                if town_choice == 'q':
+                    break
+                elif town_choice == 'i':
+                    show_information(player)
+                elif town_choice == 'm':
+                    draw_map(game_map, fog, player)
+                elif town_choice == 'v':
+                    save_game(game_map, fog, player)
+                else:
+                    print("Feature not yet implemented.")
+
+        elif choice == 'l':
+            if load_game(game_map, fog, player):
+                print(f"Welcome back, {player['name']}!")
+        elif choice == 'q':
+            print("Thanks for playing. Goodbye!")
+            break
+        else:
+            print("Invalid option. Try again.")
+
+  
