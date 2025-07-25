@@ -22,15 +22,17 @@ prices['gold'] = (10, 18)
 # This function loads a map structure (a nested list) from a file
 # It also updates MAP_WIDTH and MAP_HEIGHT
 def load_map(filename, map_struct):
-    map_file = open(filename, 'r')
-    global MAP_WIDTH
-    global MAP_HEIGHT
+    with open(filename, 'r') as map_file:
+        global MAP_WIDTH
+        global MAP_HEIGHT
     
     map_struct.clear()
     
-    # TODO: Add your map loading code here
-    datafile = open('level1.txt', 'r')
-    map = datafile.read
+    # TODO: Add your map loading code here (done)
+    map_file = map_file.read
+    map_struct = map_file.split('\n')
+    for i in range(len(map_struct)):
+            map_struct[i] = list(map_struct[i])
     
     MAP_WIDTH = len(map_struct[0])
     MAP_HEIGHT = len(map_struct)
@@ -45,7 +47,11 @@ def initialize_game(game_map, fog, player):
     # initialize map
     load_map("level1.txt", game_map)
 
-    # TODO: initialize fog
+    # TODO: initialize fog (done)
+    for x in range(MAP_HEIGHT):
+        fog.append([])
+        for y in range(MAP_WIDTH):
+            fog[x].append("?")
     
     # TODO: initialize player
     #   You will probably add other entries into the player dictionary
