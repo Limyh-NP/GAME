@@ -145,9 +145,9 @@ def show_main_menu():
     print("(Q)uit")
     print("------------------")
 
-def show_town_menu():
-    print()
-    # TODO: Show Day
+def show_town_menu(player):
+    print(f"\nDAY {player['day']}")
+    # TODO: Show Day (done)
     print("----- Sundrop Town -----")
     print("(B)uy stuff")
     print("See Player (I)nformation")
