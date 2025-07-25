@@ -133,6 +133,11 @@ def save_game(game_map, fog, player):
         
 # This function loads the game
 def load_game(game_map, fog, player):
+    global MAP_WIDTH, MAP_HEIGHT
+    load_map("level1.txt", game_map)
+    fog.clear()
+    for row in game_map:
+        fog.append([True] * len(row))
     f = open(SAVE_FILE, 'r')
     player.clear()
     for line in f:
@@ -145,16 +150,21 @@ def load_game(game_map, fog, player):
             else:
                 player[key] = value
     f.close()
+
+    player['x'] = min(max(0, player['x']), MAP_WIDTH - 1)
+    player['y'] = min(max(0, player['y']), MAP_HEIGHT - 1)
+
+    clear_fog(fog, player)
     print("Game loaded.")
     return True
 
 def enter_mine():
     player['turns'] = TURNS_PER_DAY
-    print(f"\n{'-'*50}\n{'DAY ' + str(player['day']):^50}\n{'-'*50}")
+    print(f"\n{'-'*50}\n{'DAY ' + str(player['day']+1):^50}\n{'-'*50}")
 
     while player['turns'] > 0:
         draw_view(game_map, fog, player)
-        print(f"Turns left: {player['turns']}    Load: {player['copper'] + player['silver'] + player['gold']} / {player['max_load']}    Steps: {player['steps']}")
+        print(f"Turns left: {player['turns']}    Load: {player['copper'] + player['silver'] + player['gold']} / {player['maxslots']}    Steps: {player['steps']}")
         action = input("(WASD) to move | (M)ap | (I)nformation | (P)ortal | (Q)uit: ").strip().lower()
 
         if action == 'm':
@@ -223,6 +233,7 @@ def enter_mine():
     player['portal'] = (player['x'], player['y'])
     sell_ore()
     player['day'] += 1
+
     
 def sell_ore():
     total = 0
@@ -290,16 +301,34 @@ while True:
                     draw_map(game_map, fog, player)
                 elif town_choice == 'v':
                     save_game(game_map, fog, player)
+                elif town_choice == 'e':
+                    enter_mine()
                 else:
                     print("Feature not yet implemented.")
 
         elif choice == 'l':
             if load_game(game_map, fog, player):
                 print(f"Welcome back, {player['name']}!")
+                while True:
+                    show_town_menu(player)
+                    town_choice = input("Your choice? ").strip().lower()
+                    if town_choice == 'q':
+                        break
+                    elif town_choice == 'i':
+                        show_information(player)
+                    elif town_choice == 'm':
+                        draw_map(game_map, fog, player)
+                    elif town_choice == 'v':
+                        save_game(game_map, fog, player)
+                    elif town_choice == 'e':
+                        enter_mine()
+                    else:
+                        print("Feature not yet implemented.")
         elif choice == 'q':
             print("Thanks for playing. Goodbye!")
             break
         else:
             print("Invalid option. Try again.")
 
-  
+if __name__ == '__main__':
+    game_state()

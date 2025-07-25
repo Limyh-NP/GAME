@@ -7,7 +7,7 @@ GP:0
 day:0
 steps:0
 turns:20
-name:w
+name:nuts
 maxslots:10
 pickaxelevel:1
 portal:(0, 0)
